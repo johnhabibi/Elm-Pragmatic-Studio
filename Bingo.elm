@@ -34,11 +34,16 @@ initialModel =
 
 initialEntries : List Entry
 initialEntries =
-    [ Entry 1 "Future-Proof" 100 False
-    , Entry 2 "Doing Agile" 200 False
-    , Entry 3 "In The Cloud" 300 False
+    [ Entry 2 "Doing Agile" 200 False
+    , Entry 1 "Future-Proof" 100 False
     , Entry 4 "Rock-Star Ninja" 400 False
+    , Entry 3 "In The Cloud" 300 False
     ]
+
+
+allEntriesMarked : List Entry -> Bool
+allEntriesMarked entries =
+    List.all .marked entries
 
 
 
@@ -47,13 +52,32 @@ initialEntries =
 
 type Msg
     = NewGame
+    | Mark Int
+    | Sort
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
         NewGame ->
-            { model | gameNumber = model.gameNumber + 1 }
+            { model
+                | gameNumber = model.gameNumber + 1
+                , entries = initialEntries
+            }
+
+        Mark id ->
+            let
+                markEntry e =
+                    if e.id == id then
+                        { e | marked = not e.marked }
+
+                    else
+                        e
+            in
+            { model | entries = List.map markEntry model.entries }
+
+        Sort ->
+            { model | entries = List.sortBy .points model.entries }
 
 
 
@@ -93,7 +117,7 @@ viewFooter =
 
 viewEntryItem : Entry -> Html Msg
 viewEntryItem entry =
-    li []
+    li [ classList [ ( "marked", entry.marked ) ], onClick (Mark entry.id) ]
         [ span [ class "phrase" ] [ text entry.phrase ]
         , span [ class "points" ] [ text (toString entry.points) ]
         ]
@@ -108,14 +132,32 @@ viewEntryList entries =
     ul [] listOfEntries
 
 
+sumMarkedPoints : List Entry -> Int
+sumMarkedPoints entries =
+    entries
+        |> List.filter .marked
+        |> List.map .points
+        |> List.sum
+
+
+viewScore : Int -> Html Msg
+viewScore sum =
+    div
+        [ class "score" ]
+        [ span [ class "label" ] [ text "Score" ]
+        , span [ class "value" ] [ text (toString sum) ]
+        ]
+
+
 view : Model -> Html Msg
 view model =
     div [ class "content" ]
         [ viewHeader "BUZZWORD BINGO"
         , viewPlayer model.name model.gameNumber
         , viewEntryList model.entries
+        , viewScore (sumMarkedPoints model.entries)
         , div [ class "button-group" ]
-            [ button [ onClick NewGame ] [ text "New Game" ] ]
+            [ button [ onClick NewGame ] [ text "New Game" ], button [ onClick Sort ] [ text "Sort" ] ]
         , div [ class "debug" ] [ text (toString model) ]
         , viewFooter
         ]
