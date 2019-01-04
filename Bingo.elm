@@ -3,6 +3,7 @@ module Bingo exposing (main)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
+import Http
 import Random
 
 
@@ -27,19 +28,10 @@ type alias Entry =
 
 initialModel : Model
 initialModel =
-    { entries = initialEntries
+    { entries = []
     , gameNumber = 1
     , name = "John"
     }
-
-
-initialEntries : List Entry
-initialEntries =
-    [ Entry 2 "Doing Agile" 200 False
-    , Entry 1 "Future-Proof" 100 False
-    , Entry 4 "Rock-Star Ninja" 400 False
-    , Entry 3 "In The Cloud" 300 False
-    ]
 
 
 allEntriesMarked : List Entry -> Bool
@@ -56,6 +48,7 @@ type Msg
     | Mark Int
     | Sort
     | NewRandom Int
+    | NewEntries (Result Http.Error String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -65,11 +58,21 @@ update msg model =
             ( { model | gameNumber = randomNumber }, Cmd.none )
 
         NewGame ->
-            ( { model
-                | entries = initialEntries
-              }
-            , generateRandomNumber
-            )
+            model ! [ generateRandomNumber, getEntries ]
+
+        NewEntries (Ok jsonString) ->
+            let
+                _ =
+                    Debug.log "It worked!" jsonString
+            in
+            ( model, Cmd.none )
+
+        NewEntries (Err error) ->
+            let
+                _ =
+                    Debug.log "Oops!" error
+            in
+            ( model, Cmd.none )
 
         Mark id ->
             let
@@ -93,6 +96,18 @@ update msg model =
 generateRandomNumber : Cmd Msg
 generateRandomNumber =
     Random.generate NewRandom (Random.int 1 100)
+
+
+entriesUrl : String
+entriesUrl =
+    "http://localhost:3001/random-entries"
+
+
+getEntries : Cmd Msg
+getEntries =
+    entriesUrl
+        |> Http.getString
+        |> Http.send NewEntries
 
 
 
@@ -187,7 +202,7 @@ view model =
 main : Program Never Model Msg
 main =
     Html.program
-        { init = ( initialModel, generateRandomNumber )
+        { init = initialModel ! [ generateRandomNumber, getEntries ]
         , view = view
         , update = update
         , subscriptions = always Sub.none
